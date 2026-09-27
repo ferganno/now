@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>NOW — Одно действие</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NOW">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=5">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=5">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#F7F7F9" id="theme-color-meta">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("now_app_theme");
+        if (t !== "dark" && t !== "light") t = (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="ambient-glow" id="ambientGlow"></div>
+
+  <div class="desktop-layout">
+    <!-- Desktop Sidebar (visible only on wide screens) -->
+    <aside class="desktop-sidebar" id="desktopSidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <span class="brand-pill">NOW</span>
+          <span class="brand-tagline">следующий шаг</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="sidebar-section-title">Действия</h3>
+        <div class="sidebar-tasks-list" id="sidebarTasksList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="sidebar-section sidebar-stats" id="sidebarStats">
+        <h3 class="sidebar-section-title">Прогресс сегодня</h3>
+        <div class="stats-row">
+          <span class="stat-value" id="statDoneToday">0</span>
+          <span class="stat-label">сделано</span>
+        </div>
+      </div>
+
+      <div class="sidebar-bottom">
+        <button class="sidebar-add-btn" id="sidebarAddBtn">
+          <span class="plus-icon">+</span>
+          <span>Выгрузить мысли</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main app column (stays as-is for mobile) -->
+    <div class="app-container">
+    <!-- Top Nav / Minimalist Header -->
+    <header class="top-bar">
+      <div class="brand">
+        <span class="brand-pill">NOW</span>
+        <span class="brand-tagline">следующий шаг</span>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" id="pomodoroBtn" title="Помодоро" aria-label="Режим Помодоро">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="14" r="8"></circle>
+            <line x1="12" y1="6" x2="12" y2="2"></line>
+            <path d="M9 2h6"></path>
+          </svg>
+          <span class="badge pomodoro-badge" id="pomodoroBadge" style="display:none;"></span>
+        </button>
+
+        <button class="icon-btn" id="timeFilterBtn" title="Выбрать время" aria-label="Фильтр по времени">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span class="badge" id="activeTimeBadge" style="display:none;"></span>
+        </button>
+
+        <button class="icon-btn" id="listToggleBtn" title="Все задачи" aria-label="Открыть список">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          <span class="badge" id="tasksCountBadge" style="display:none;"></span>
+        </button>
+
+        <button class="icon-btn" id="themeToggleBtn" title="Тема оформления" aria-label="Сменить тему">
+          <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+
+
+      </div>
+    </header>
+
+    <!-- Main Hero Stage: The Single Card -->
+    <main class="focus-stage">
+      <div class="question-label" id="stageQuestion">Что сделать прямо сейчас?</div>
+
+      <!-- Active Task Card -->
+      <div class="card-container" id="cardContainer">
+        <div class="task-card" id="taskCard">
+          <div class="card-glow"></div>
+
+          <div class="card-top-meta">
+            <span class="parent-task-badge" id="cardParentTask"></span>
+            <span class="time-estimate-pill" id="cardDuration"></span>
+          </div>
+
+          <div class="card-body">
+            <h1 class="action-title" id="cardActionTitle"></h1>
+            <p class="action-reason" id="cardReason"></p>
+          </div>
+
+          <!-- Micro-step notification if activated -->
+          <div class="lazy-mode-banner" id="lazyBanner" style="display: none;">
+            <span class="lazy-badge">Режим «Без давления»</span>
+            <p class="lazy-text" id="lazyText">Сделай только один крошечный шаг на 60 секунд.</p>
+          </div>
+
+          <!-- Timer Overlay (Visible during focus) -->
+          <div class="timer-display" id="timerDisplay" style="display: none;">
+            <div class="timer-circular-wrap">
+              <svg class="timer-svg" viewBox="0 0 200 200">
+                <circle class="timer-track" cx="100" cy="100" r="88" />
+                <circle class="timer-progress" id="timerProgressCircle" cx="100" cy="100" r="88" />
+              </svg>
+              <div class="timer-digits" id="timerDigits">00:00</div>
+            </div>
+            <div class="timer-status-hint" id="timerStatusHint">Фокусируйся только на этом</div>
+          </div>
+
+          <!-- Card Primary Actions -->
+          <div class="card-controls" id="cardControls">
+            <!-- Idle state buttons -->
+            <div class="idle-buttons" id="idleButtons">
+              <button class="primary-btn start-btn" id="startBtn">
+                <span class="btn-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                </span>
+                <span class="btn-text">Начать</span>
+              </button>
+            </div>
+
+            <!-- Running state buttons -->
+            <div class="running-buttons" id="runningButtons" style="display: none;">
+              <button class="secondary-btn" id="pauseBtn">Пауза</button>
+              <button class="primary-btn complete-btn" id="finishBtn">
+                <span class="btn-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span>Готово!</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secondary Sub-Controls: Gentle nudges -->
+      <div class="gentle-actions" id="gentleActions">
+        <button class="text-pill-btn lazy-btn" id="lazyBtn">
+          <span class="pill-emoji">🛋️</span>
+          <span>Мне лень</span>
+        </button>
+
+        <button class="text-pill-btn skip-btn" id="skipBtn">
+          <span>Не сейчас</span>
+          <span class="pill-arrow">→</span>
+        </button>
+      </div>
+
+      <!-- Empty State (when all tasks done) -->
+      <div class="all-done-view" id="allDoneView" style="display: none;">
+        <div class="zen-circle">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
+        <h2 class="all-done-title" id="allDoneTitle">Тишина и ясность</h2>
+        <p class="all-done-desc" id="allDoneDesc">Все дела завершены. Отдохни или выгрузи новые мысли.</p>
+        <button class="primary-btn done-add-btn" id="emptyAddBtn">
+          <span>+ Выгрузить мысли</span>
+        </button>
+        <button class="secondary-btn show-all-btn" id="showAllBtn" type="button" style="display:none;">Показать все задачи</button>
+      </div>
+    </main>
+
+    <!-- Bottom Brain Dump Bar -->
+    <footer class="bottom-bar">
+      <button class="dump-input-trigger" id="dumpTriggerBtn">
+        <span class="plus-icon">+</span>
+        <span class="trigger-label">Выгрузи мысль... AI разложит на шаги</span>
+        <span class="mic-icon" id="dumpMicBtn" title="Надиктовать голосом">🎙️</span>
+      </button>
+    </footer>
+  </div><!-- /.app-container -->
+  </div><!-- /.desktop-layout -->
+
+  <!-- Bottom Sheet / Modal: Brain Dump Input -->
+  <div class="sheet-backdrop" id="dumpSheetBackdrop">
+    <div class="bottom-sheet" id="dumpSheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Выгрузка из головы</h3>
+        <button class="sheet-close-btn" id="dumpCloseBtn">✕</button>
+      </div>
+      <p class="sheet-subtitle">Напиши или надиктуй всё, что крутится в мыслях — через запятую или с новой строки. Мы превратим это в шаги по 2–10 минут.</p>
+
+      <form id="dumpForm">
+        <div class="input-wrap">
+          <textarea id="dumpTextarea" placeholder="Например: разобраться с документами на визу, позвонить бабушке, сделать уборку в комнате..." rows="3"></textarea>
+        </div>
+
+        <div class="preset-suggestions">
+          <span class="preset-chip" data-sample="Убраться в комнате">🧹 Уборка</span>
+          <span class="preset-chip" data-sample="Сделать уроки по математике">📐 Уроки</span>
+          <span class="preset-chip" data-sample="Разобраться с документами">📂 Документы</span>
+          <span class="preset-chip" data-sample="Купить подарок маме">🎁 Подарок</span>
+        </div>
+
+        <div class="sheet-footer">
+          <button type="button" class="speech-btn" id="voiceInputBtn">
+            <span class="mic-dot"></span>
+            <span id="voiceBtnText">Голос</span>
+          </button>
+          <button type="submit" class="primary-btn submit-dump-btn" id="dumpSubmitBtn">
+            <span>Превратить в шаги</span>
+            <span class="btn-sparkle">✨</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Time Filter Modal / Sheet ("У меня есть X минут") -->
+  <div class="sheet-backdrop" id="timeSheetBackdrop">
+    <div class="bottom-sheet time-sheet" id="timeSheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Сколько у тебя времени?</h3>
+        <button class="sheet-close-btn" id="timeCloseBtn">✕</button>
+      </div>
+      <p class="sheet-subtitle">Выбери свободный отрезок, и мы подберем идеальное действие без перегруза.</p>
+
+      <div class="time-presets-grid">
+        <button class="time-slot-card" data-minutes="5">
+          <span class="slot-number">5</span>
+          <span class="slot-unit">минут</span>
+          <span class="slot-label">Быстрый импульс</span>
+        </button>
+        <button class="time-slot-card" data-minutes="15">
+          <span class="slot-number">15</span>
+          <span class="slot-unit">минут</span>
+          <span class="slot-label">Сделать одно дело</span>
+        </button>
+        <button class="time-slot-card" data-minutes="25">
+          <span class="slot-number">25</span>
+          <span class="slot-unit">минут</span>
+          <span class="slot-label">Глубокий фокус</span>
+        </button>
+        <button class="time-slot-card" data-minutes="all">
+          <span class="slot-number">∞</span>
+          <span class="slot-unit">Любое</span>
+          <span class="slot-label">Все задачи</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pomodoro Mode Sheet -->
+  <div class="sheet-backdrop" id="pomodoroSheetBackdrop">
+    <div class="bottom-sheet pomodoro-sheet" id="pomodoroSheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">🍅 Режим Помодоро</h3>
+        <button class="sheet-close-btn" id="pomodoroCloseBtn">✕</button>
+      </div>
+
+      <!-- Pomodoro NOT running state -->
+      <div id="pomodoroSetup">
+        <p class="sheet-subtitle">Классическая техника глубокого фокуса. Работай циклами — отдыхай между ними.</p>
+
+        <div class="pomodoro-settings">
+          <div class="pomo-setting-row">
+            <span class="pomo-setting-label">🎯 Фокус</span>
+            <div class="pomo-stepper">
+              <button class="pomo-step-btn" data-target="pomoWork" data-delta="-5">−</button>
+              <span class="pomo-step-value" id="pomoWorkValue">25</span>
+              <span class="pomo-step-unit">мин</span>
+              <button class="pomo-step-btn" data-target="pomoWork" data-delta="5">+</button>
+            </div>
+          </div>
+          <div class="pomo-setting-row">
+            <span class="pomo-setting-label">☕ Перерыв</span>
+            <div class="pomo-stepper">
+              <button class="pomo-step-btn" data-target="pomoBreak" data-delta="-1">−</button>
+              <span class="pomo-step-value" id="pomoBreakValue">5</span>
+              <span class="pomo-step-unit">мин</span>
+              <button class="pomo-step-btn" data-target="pomoBreak" data-delta="1">+</button>
+            </div>
+          </div>
+          <div class="pomo-setting-row">
+            <span class="pomo-setting-label">🌿 Длинный перерыв</span>
+            <div class="pomo-stepper">
+              <button class="pomo-step-btn" data-target="pomoLong" data-delta="-5">−</button>
+              <span class="pomo-step-value" id="pomoLongValue">15</span>
+              <span class="pomo-step-unit">мин</span>
+              <button class="pomo-step-btn" data-target="pomoLong" data-delta="5">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pomo-cycle-info" id="pomoCycleInfo">4 помидора → длинный перерыв</div>
+
+        <button class="primary-btn pomo-start-session-btn" id="pomoStartSessionBtn">
+          <span>🍅</span>
+          <span>Запустить сессию</span>
+        </button>
+      </div>
+
+      <!-- Pomodoro RUNNING state -->
+      <div id="pomodoroRunning" style="display: none;">
+        <div class="pomo-phase-label" id="pomoPhaseLabel">Фокус</div>
+
+        <div class="pomo-timer-wrap">
+          <svg class="pomo-timer-svg" viewBox="0 0 200 200">
+            <circle class="pomo-timer-track" cx="100" cy="100" r="88" />
+            <circle class="pomo-timer-progress" id="pomoProgressCircle" cx="100" cy="100" r="88" />
+          </svg>
+          <div class="pomo-timer-digits" id="pomoTimerDigits">25:00</div>
+        </div>
+
+        <div class="pomo-dots" id="pomoDots">
+          <span class="pomo-dot"></span>
+          <span class="pomo-dot"></span>
+          <span class="pomo-dot"></span>
+          <span class="pomo-dot"></span>
+        </div>
+
+        <div class="pomo-running-controls">
+          <button class="secondary-btn" id="pomoPauseBtn">Пауза</button>
+          <button class="primary-btn complete-btn" id="pomoSkipBtn">Пропустить →</button>
+        </div>
+        <button class="clean-btn pomo-stop-btn" id="pomoStopBtn">Завершить сессию</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backlog Drawer (Full List View) -->
+  <div class="drawer-backdrop" id="listDrawerBackdrop">
+    <div class="side-drawer" id="listDrawer">
+      <div class="drawer-header" style="display: flex; align-items: center; justify-content: space-between;">
+        <button class="clean-btn" id="listBackBtn" type="button" aria-label="Закрыть список" style="color: var(--accent-blue); padding: 0; font-size: 16px; display: flex; align-items: center; width: 70px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: -2px;"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          Назад
+        </button>
+        <div style="flex: 1; text-align: center;">
+          <h2 class="drawer-title" style="margin: 0; font-size: 16px;">Все шаги</h2>
+          <span class="drawer-subtitle" id="drawerTaskCounter" style="margin-top: 2px;">Осталось действий: 0</span>
+        </div>
+        <div style="width: 70px; text-align: right;">
+          <button class="sheet-close-btn" id="listCloseBtn" type="button" aria-label="Закрыть список" style="position: static; margin-left: auto;">✕</button>
+        </div>
+      </div>
+
+      <div class="drawer-body" id="drawerTasksList">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div class="drawer-footer">
+        <div class="drawer-footer-actions">
+          <button class="secondary-btn drawer-exit-btn" id="drawerExitBtn" type="button">← Выйти</button>
+          <button class="primary-btn drawer-add-btn" id="drawerAddBtn" type="button">+ Записать задачу</button>
+        </div>
+        <button class="clean-btn" id="forceNotifBtn" type="button" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; color: var(--text-secondary);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          Включить уведомления
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- First-launch: Notification Permission Sheet -->
+  <div class="sheet-backdrop" id="notifSheetBackdrop">
+    <div class="bottom-sheet notif-sheet" role="dialog" aria-labelledby="notifSheetTitle">
+      <div class="sheet-handle"></div>
+      <div class="notif-sheet-icon">🔔</div>
+      <h3 class="sheet-title notif-sheet-title" id="notifSheetTitle">Включить уведомления?</h3>
+      <p class="sheet-subtitle notif-sheet-text">NOW напомнит, когда закончится таймер или перерыв в Помодоро. Никакого спама — только о твоих шагах.</p>
+      <div class="notif-sheet-actions">
+        <button class="primary-btn" id="notifAllowBtn" type="button">Разрешить</button>
+        <button class="secondary-btn" id="notifLaterBtn" type="button">Не сейчас</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Micro Toast Notification -->
+  <div class="toast" id="toastMessage"></div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+
+
+  <!-- iOS Add to Home Screen Banner -->
+  <div class="ios-install-banner" id="iosInstallBanner" style="display: none;">
+    <div class="ios-banner-content">
+      <div class="ios-banner-icon">
+        <img src="apple-touch-icon.png?v=5" width="36" height="36" alt="NOW" style="border-radius: 8px;">
+      </div>
+      <div class="ios-banner-text">
+        <strong>Установи NOW на iPhone</strong>
+        <span>Нажми <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> (Поделиться) и выбери <b>«На экран Домой»</b></span>
+      </div>
+      <button class="ios-banner-close" id="iosBannerCloseBtn">✕</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
