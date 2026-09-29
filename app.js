@@ -16,8 +16,8 @@ const INITIAL_TASKS = [
   {
     id: "task-guide-dump",
     parentGoal: "Гайд · 2 из 2",
-    action: "Нажми «+ Выгрузи мысль» внизу и напиши: «Убраться в комнате, позвонить маме»",
-    reason: "Пиши дела через запятую или с новой строки — NOW разложит их на маленькие шаги по 2–5 минут. Потом отметь этот шаг «Готово!».",
+    action: "Нажми «+ Выгрузи мысль» внизу и напиши: «Позвонить маме завтра в 18:00, купить хлеб»",
+    reason: "Каждое дело станет отдельной задачей. Срок пишется прямо в тексте — за час до него придёт уведомление. Все задачи, списки и сроки — в меню ☰ справа сверху.",
     durationMinutes: 2,
     lazyVersion: "Просто открой «+ Выгрузи мысль» внизу (5 сек)"
   }
@@ -25,6 +25,7 @@ const INITIAL_TASKS = [
 
 const STORAGE = {
   tasks: "now_app_tasks",
+  lists: "now_app_lists",
   theme: "now_app_theme",
   done: "now_done_today",
   pomo: "now_pomo_settings",
@@ -48,58 +49,7 @@ function wordRegex(keywords) {
   return new RegExp(`(?:^|[^${L}])(?:${keywords.join("|")})`, "i");
 }
 
-// --- Smart Atomizer (Built-in Heuristic / Offline Engine) ---
-// {text} в action подставляется исходной формулировкой пользователя.
-// Порядок важен: срабатывает первое совпавшее правило.
-const ATOMIZER_RULES = [
-  {
-    keywords: ["позвон", "созвон", "перезвон"],
-    parent: "Звонок",
-    steps: [
-      { action: "{text}", duration: 3, reason: "Один короткий звонок снимает груз на весь день.", lazy: "Просто открой контакт в телефоне (10 сек)" }
-    ]
-  },
-  {
-    keywords: ["презентац", "слайд", "доклад", "отч[её]т", "проект", "курсов", "диплом"],
-    steps: [
-      { action: "Открыть файл и записать главную мысль", duration: 4, reason: "Снимает ступор белого листа.", lazy: "Просто открой файл и напиши заголовок (45 сек)" },
-      { action: "Набросать 3 ключевых тезиса", duration: 8, reason: "Каркас готов за 8 минут.", lazy: "Напиши один тезис в заметки (1 мин)" },
-      { action: "Оформить финальный слайд или выводы", duration: 6, reason: "Логическое завершение.", lazy: "Перечитай первый абзац (1 мин)" }
-    ]
-  },
-  {
-    keywords: ["урок", "математ", "стих(?!и)", "школ", "дз(?![а-яё])", "домашк", "домашн[а-яё]* задан"],
-    steps: [
-      { action: "Открыть тетрадь и учебник на нужной странице", duration: 2, reason: "Подготовить рабочее место без напряжения.", lazy: "Просто положи тетрадь и ручку на стол (20 сек)" },
-      { action: "Прочитать условие первого задания дважды", duration: 3, reason: "Понять, о чём речь.", lazy: "Прочитай первое предложение вслух (30 сек)" },
-      { action: "Записать первый шаг решения", duration: 7, reason: "Главное — положить начало.", lazy: "Запиши номер задания в тетрадь (20 сек)" }
-    ]
-  },
-  {
-    keywords: ["документ", "виз[аеуы](?![а-яё])", "визой", "паспорт", "налог", "оплат", "заплат", "жкх", "сч[её]т", "квитанц", "справк", "заявлен"],
-    steps: [
-      { action: "Найти нужные документы или открыть сайт", duration: 3, reason: "Первый шаг — просто положить перед собой.", lazy: "Открой сайт или приложение (45 сек)" },
-      { action: "Сверить сумму или недостающие пункты", duration: 4, reason: "Понять объём за 4 минуты.", lazy: "Посмотри одну итоговую цифру (30 сек)" },
-      { action: "Нажать «Оплатить» или «Отправить»", duration: 2, reason: "Финальное действие.", lazy: "Открой страницу оплаты или отправки (30 сек)" }
-    ]
-  },
-  {
-    keywords: ["убор", "убра", "убер", "прибра", "прибер", "порядок", "комнат"],
-    steps: [
-      { action: "Собрать с пола или стола 5 лишних вещей", duration: 3, reason: "Быстрый визуальный порядок за 3 минуты.", lazy: "Подними ровно одну вещь с пола (20 сек)" },
-      { action: "Заправить постель", duration: 2, reason: "Комната сразу выглядит опрятно.", lazy: "Просто расправь подушку (30 сек)" },
-      { action: "Унести посуду на кухню", duration: 3, reason: "Чистое рабочее место.", lazy: "Отнеси одну чашку в раковину (30 сек)" }
-    ]
-  },
-  {
-    keywords: ["написат", "напиши", "спросит", "ответит", "сообщ", "отправит"],
-    parent: "Сообщение",
-    steps: [
-      { action: "{text}", duration: 3, reason: "Не откладывай — это займёт всего 3 минуты.", lazy: "Открой чат и напиши первое слово (20 сек)" }
-    ]
-  }
-].map(rule => ({ ...rule, regex: wordRegex(rule.keywords) }));
-
+// Категория только подписывает задачу — текст пользователя никогда не заменяется шаблоном
 const PARENT_CATEGORIES = [
   { keys: ["купит", "куплю", "магазин", "заказат", "покупк"], label: "Покупки" },
   { keys: ["позвон", "написат", "ответит", "сообщ", "связат", "мам[аеуыо]?(?![а-яё])", "мамой", "пап[аеуыо]?(?![а-яё])", "папой", "бабушк", "дедушк", "друг"], label: "Общение" },
@@ -113,13 +63,173 @@ const PARENT_CATEGORIES = [
   { keys: ["подар", "праздник", "день рожден"], label: "Праздники" }
 ].map(c => ({ label: c.label, regex: wordRegex(c.keys) }));
 
+const DEFAULT_LISTS = [
+  { id: "inbox", name: "Входящие", emoji: "📥" },
+  { id: "personal", name: "Личное", emoji: "🏠" },
+  { id: "work", name: "Работа", emoji: "💼" },
+  { id: "shopping", name: "Покупки", emoji: "🛒" }
+];
+
+// Умные списки (как «Мой день» / «Запланировано» / «Важное» в Microsoft To Do)
+const SMART_VIEWS = [
+  { id: "myday", name: "Мой день", emoji: "☀️" },
+  { id: "planned", name: "Запланировано", emoji: "📅" },
+  { id: "important", name: "Важное", emoji: "★" },
+  { id: "all", name: "Все", emoji: "∞" },
+  { id: "done", name: "Выполнено", emoji: "✓" }
+];
+
+const REPEAT_LABELS = { none: "Не повторять", daily: "Каждый день", weekdays: "По будням", weekly: "Каждую неделю", monthly: "Каждый месяц", yearly: "Каждый год" };
+const PRIORITY_LABELS = ["Нет", "Низкий", "Средний", "Высокий"];
+
 const TIMER_TICK_MS = 250;
 const TIMER_CIRCUMFERENCE = 553; // 2 * PI * 88
+const HOUR_MS = 3600000;
+const DEADLINE_CHECK_MS = 20000;
+const STALE_ALERT_MS = 12 * HOUR_MS; // старые просрочки при открытии не спамим уведомлениями
+
+function pad2(n) { return String(n).padStart(2, "0"); }
 
 function localDateKey(d = new Date()) {
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${m}-${day}`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+// Срок хранится как местное время "YYYY-MM-DDTHH:MM" — без сдвигов из-за часовых поясов
+function toLocalISO(d) {
+  return `${localDateKey(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function parseLocalISO(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(s || "");
+  if (!m) return null;
+  const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  // отбрасываем несуществующие даты вроде 31.02 и время вне 00:00–23:59
+  if (d.getDate() !== +m[3] || +m[4] > 23 || +m[5] > 59) return null;
+  return d;
+}
+
+function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function daysBetween(a, b) { return Math.round((startOfDay(b) - startOfDay(a)) / 86400000); }
+
+const WEEKDAYS_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+
+// Время по умолчанию, когда выбрана только дата: сегодня — ближайший час, иначе 09:00
+function defaultTimeFor(date, now = new Date()) {
+  if (daysBetween(now, date) === 0) {
+    const h = now.getHours() + 1;
+    return h > 23 ? "23:59" : `${pad2(h)}:00`;
+  }
+  return "09:00";
+}
+
+function formatDue(iso, now = new Date()) {
+  const d = parseLocalISO(iso);
+  if (!d) return "";
+  const diff = daysBetween(now, d);
+  const time = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  let day;
+  if (diff === 0) day = "Сегодня";
+  else if (diff === 1) day = "Завтра";
+  else if (diff === -1) day = "Вчера";
+  else {
+    day = `${WEEKDAYS_SHORT[d.getDay()]}, ${d.getDate()} ${MONTHS_GEN[d.getMonth()]}`;
+    if (d.getFullYear() !== now.getFullYear()) day += ` ${d.getFullYear()}`;
+  }
+  return `${day}, ${time}`;
+}
+
+// overdue — срок прошёл, soon — меньше часа, today — сегодня, future — позже
+function dueState(iso, now = new Date()) {
+  const d = parseLocalISO(iso);
+  if (!d) return null;
+  const left = d - now;
+  if (left <= 0) return "overdue";
+  if (left <= HOUR_MS) return "soon";
+  if (daysBetween(now, d) === 0) return "today";
+  return "future";
+}
+
+// Следующий срок повторяющейся задачи (всегда в будущем)
+function nextRepeat(iso, repeat, now = new Date()) {
+  let d = parseLocalISO(iso) || now;
+  const step = (x) => {
+    const r = new Date(x);
+    if (repeat === "daily") r.setDate(r.getDate() + 1);
+    else if (repeat === "weekdays") { do { r.setDate(r.getDate() + 1); } while (r.getDay() === 0 || r.getDay() === 6); }
+    else if (repeat === "weekly") r.setDate(r.getDate() + 7);
+    else if (repeat === "monthly") {
+      const day = r.getDate();
+      r.setDate(1); r.setMonth(r.getMonth() + 1);
+      r.setDate(Math.min(day, new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate()));
+    } else if (repeat === "yearly") r.setFullYear(r.getFullYear() + 1);
+    return r;
+  };
+  if (!REPEAT_LABELS[repeat] || repeat === "none") return null;
+  let guard = 0;
+  do { d = step(d); guard++; } while (d <= now && guard < 1000);
+  return toLocalISO(d);
+}
+
+// Быстрый ввод в стиле Todoist: «Позвонить маме завтра в 15:00 !1 #Личное»
+const WEEKDAY_FORMS = {
+  "понедельник": 1, "пн": 1, "вторник": 2, "вт": 2, "среду": 3, "среда": 3, "ср": 3,
+  "четверг": 4, "чт": 4, "пятницу": 5, "пятница": 5, "пт": 5, "субботу": 6, "суббота": 6, "сб": 6,
+  "воскресенье": 0, "вс": 0
+};
+const WEEKDAY_RE = new RegExp(`\\s(?:во?\\s+)?(${Object.keys(WEEKDAY_FORMS).join("|")})(?=\\s)`, "i");
+
+function parseQuickInput(text, now = new Date()) {
+  let s = ` ${String(text || "").replace(/\s+/g, " ").trim()} `;
+  let date = null, time = null, priority = 0, listName = null;
+  const cut = (re, fn) => { s = s.replace(re, (...m) => { fn(m); return " "; }); };
+
+  cut(/\s!([1-3])(?=\s)/, (m) => { priority = 4 - Number(m[1]); });           // !1 — высокий
+  cut(/\s(!{1,3})(?=\s)/, (m) => { if (!priority) priority = m[1].length; });  // !!! — высокий
+  cut(/\s#([^\s#]+)(?=\s)/, (m) => { listName = m[1].replace(/_/g, " "); });
+
+  cut(/\s(?:в|к)\s+([01]?\d|2[0-3])[:.]([0-5]\d)(?=\s)/i, (m) => { time = [+m[1], +m[2]]; });
+  if (!time) cut(/\s([01]?\d|2[0-3]):([0-5]\d)(?=\s)/, (m) => { time = [+m[1], +m[2]]; });
+  if (!time) cut(/\s(?:в|к)\s+([01]?\d|2[0-3])(?:\s*(?:ч|час[а-я]*))?(?=\s*$)/i, (m) => { time = [+m[1], 0]; });
+
+  const today = startOfDay(now);
+  cut(/\s(послезавтра)(?=\s)/i, () => { date = addDays(today, 2); });
+  cut(/\s(завтра)(?=\s)/i, () => { date = date || addDays(today, 1); });
+  cut(/\s(сегодня)(?=\s)/i, () => { date = date || today; });
+  cut(/\s(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?(?=\s)/, (m) => {
+    let y = m[3] ? Number(m[3]) : now.getFullYear();
+    if (y < 100) y += 2000;
+    const d = new Date(y, Number(m[2]) - 1, Number(m[1]));
+    if (d.getDate() === Number(m[1])) {
+      if (!m[3] && d < today) d.setFullYear(d.getFullYear() + 1);
+      date = d;
+    }
+  });
+  cut(new RegExp(`\\s(\\d{1,2})\\s+(${MONTHS_GEN.join("|")})(?=\\s)`, "i"), (m) => {
+    const d = new Date(now.getFullYear(), MONTHS_GEN.indexOf(m[2].toLowerCase()), Number(m[1]));
+    if (d < today) d.setFullYear(d.getFullYear() + 1);
+    date = d;
+  });
+  if (!date) cut(WEEKDAY_RE, (m) => {
+    const target = WEEKDAY_FORMS[m[1].toLowerCase()];
+    let diff = (target - today.getDay() + 7) % 7;
+    if (diff === 0) diff = 7; // «в пятницу» в пятницу = следующая пятница
+    date = addDays(today, diff);
+  });
+
+  let due = null;
+  if (date || time) {
+    if (!date) {
+      date = today;
+      if (time[0] * 60 + time[1] <= now.getHours() * 60 + now.getMinutes()) date = addDays(today, 1);
+    }
+    const [hh, mm] = time || defaultTimeFor(date, now).split(":").map(Number);
+    due = toLocalISO(new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh, mm));
+  }
+
+  const title = s.replace(/\s+/g, " ").trim();
+  return { title, due, priority, listName };
 }
 
 function formatClock(totalSeconds) {
@@ -129,9 +239,9 @@ function formatClock(totalSeconds) {
 }
 
 let idCounter = 0;
-function makeId() {
+function makeId(prefix = "task") {
   idCounter++;
-  return `task-${Date.now().toString(36)}-${idCounter}-${Math.random().toString(36).slice(2, 7)}`;
+  return `${prefix}-${Date.now().toString(36)}-${idCounter}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 class NowApp {
@@ -178,10 +288,20 @@ class NowApp {
     this.recognition = null;
     this.isRecordingVoice = false;
 
+    // Списки задач и состояние экрана списка
+    this.lists = [];
+    this.view = "all";            // умный список или id своего списка
+    this.searchQuery = "";
+    this.editDraft = null;        // копия задачи в редакторе
+    this.editIsNew = false;
+    this.dumpListId = null;       // null — список подбирается автоматически
+    this.lastRenderDay = localDateKey();
+
     this.initElements();
     this.loadState();
     this.attachEvents();
     this.render();
+    this.startDeadlineWatcher();
   }
 
   initElements() {
@@ -283,31 +403,71 @@ class NowApp {
     this.sidebarAddBtn = $("sidebarAddBtn");
 
     this.themeColorMeta = $("theme-color-meta");
+
+    // Список задач (To Do)
+    this.cardDue = $("cardDue");
+    this.drawerTitle = $("drawerTitle");
+    this.listTabs = $("listTabs");
+    this.listActions = $("listActions");
+    this.taskSearch = $("taskSearch");
+    this.quickAddForm = $("quickAddForm");
+    this.quickAddInput = $("quickAddInput");
+    this.quickAddHint = $("quickAddHint");
+    this.dumpListChips = $("dumpListChips");
+    this.sidebarNav = $("sidebarNav");
+
+    // Редактор задачи
+    this.editSheetBackdrop = $("editSheetBackdrop");
+    this.editSheetTitle = $("editSheetTitle");
+    this.editCloseBtn = $("editCloseBtn");
+    this.editTitle = $("editTitle");
+    this.editNotes = $("editNotes");
+    this.editDate = $("editDate");
+    this.editHour = $("editHour");
+    this.editMinute = $("editMinute");
+    this.editDueHint = $("editDueHint");
+    this.editRepeat = $("editRepeat");
+    this.editList = $("editList");
+    this.editDuration = $("editDuration");
+    this.editPriority = $("editPriority");
+    this.editImportant = $("editImportant");
+    this.editMyDay = $("editMyDay");
+    this.editSubtasks = $("editSubtasks");
+    this.subtaskForm = $("subtaskForm");
+    this.subtaskInput = $("subtaskInput");
+    this.editDeleteBtn = $("editDeleteBtn");
+    this.editFocusBtn = $("editFocusBtn");
+    this.editSaveBtn = $("editSaveBtn");
   }
 
   // --- State Persistence ---
   freshSeed() {
-    return INITIAL_TASKS.map(t => ({ ...t }));
+    return INITIAL_TASKS.map(t => this.normalizeTask({ ...t }));
   }
 
   isValidTask(t) {
     return t && typeof t === "object" && typeof t.id === "string" && typeof t.action === "string" && t.action.trim() !== "";
   }
 
+  // Приводим задачу (в т.ч. из старых версий) к полной модели
+
   loadState() {
+    // Списки
+    try {
+      const savedLists = JSON.parse(store.get(STORAGE.lists) || "null");
+      this.lists = Array.isArray(savedLists) && savedLists.some(l => l && l.id === "inbox")
+        ? savedLists.filter(l => l && typeof l.id === "string" && typeof l.name === "string")
+        : DEFAULT_LISTS.map(l => ({ ...l }));
+    } catch (e) {
+      this.lists = DEFAULT_LISTS.map(l => ({ ...l }));
+    }
+
     const saved = store.get(STORAGE.tasks);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (!Array.isArray(parsed)) throw new Error("tasks is not an array");
-        this.tasks = parsed.filter(t => this.isValidTask(t)).map(t => ({
-          ...t,
-          durationMinutes: Number(t.durationMinutes) > 0 ? Number(t.durationMinutes) : 5
-        }));
-        // Авто-очистка старых демо-задач из ранней версии
-        if (this.tasks.some(t => t.parentGoal === "Презентация" && t.id.indexOf("task-") !== 0)) {
-          this.tasks = this.freshSeed();
-        }
+        this.tasks = parsed.filter(t => this.isValidTask(t)).map(t => this.normalizeTask(t));
       } catch (e) {
         this.tasks = this.freshSeed();
       }
@@ -348,6 +508,7 @@ class NowApp {
 
   saveState() {
     store.set(STORAGE.tasks, JSON.stringify(this.tasks));
+    store.set(STORAGE.lists, JSON.stringify(this.lists));
   }
 
   refreshDoneDay() {
@@ -436,8 +597,17 @@ class NowApp {
 
   // --- Filtering & Active Task Selection ---
   getActiveTasks() {
-    if (!this.activeTimeFilter) return this.tasks;
-    return this.tasks.filter(t => t.durationMinutes <= this.activeTimeFilter);
+    const now = new Date();
+    const urgent = (t) => { const st = dueState(t.due, now); return st === "overdue" || st === "soon" || st === "today"; };
+    return this.getOpenTasks()
+      .filter(t => !this.activeTimeFilter || t.durationMinutes <= this.activeTimeFilter)
+      .map((t, i) => ({ t, i, u: urgent(t) }))
+      .sort((a, b) =>
+        (b.u - a.u) ||
+        (a.u ? parseLocalISO(a.t.due) - parseLocalISO(b.t.due) : 0) ||
+        (b.t.priority - a.t.priority) ||
+        (a.i - b.i))
+      .map(x => x.t);
   }
 
   getTaskById(id) {
@@ -470,11 +640,13 @@ class NowApp {
   // --- UI Rendering ---
   render() {
     this.refreshDoneDay();
+    this.lastRenderDay = localDateKey();
     const current = this.getCurrentTask();
+    const openCount = this.getOpenTasks().length;
 
     // Счётчики и списки обновляются всегда, даже на пустом экране
-    this.tasksCountBadge.textContent = this.tasks.length;
-    this.tasksCountBadge.style.display = this.tasks.length ? "flex" : "none";
+    this.tasksCountBadge.textContent = openCount;
+    this.tasksCountBadge.style.display = openCount ? "flex" : "none";
     if (this.activeTimeFilter) {
       this.activeTimeBadge.style.display = "flex";
       this.activeTimeBadge.textContent = `${this.activeTimeFilter}м`;
@@ -490,10 +662,10 @@ class NowApp {
       this.stageQuestion.style.display = "none";
       this.allDoneView.style.display = "flex";
 
-      const filteredOut = this.tasks.length > 0 && this.activeTimeFilter;
+      const filteredOut = openCount > 0 && this.activeTimeFilter;
       if (filteredOut) {
         this.allDoneTitle.textContent = `Нет дел до ${this.activeTimeFilter} минут`;
-        this.allDoneDesc.textContent = `В списке ещё ${this.tasks.length} — но все они длиннее выбранного окна.`;
+        this.allDoneDesc.textContent = `В списке ещё ${openCount} — но все они длиннее выбранного окна.`;
         this.showAllBtn.style.display = "inline-flex";
       } else {
         this.allDoneTitle.textContent = "Тишина и ясность";
@@ -508,7 +680,12 @@ class NowApp {
     this.gentleActions.style.display = "flex";
     this.stageQuestion.style.display = "block";
 
-    this.cardParentTask.textContent = current.parentGoal || "Фокус";
+    this.cardParentTask.textContent = this.taskLabel(current);
+
+    // Срок на карточке: нажатие открывает редактор
+    const st = dueState(current.due);
+    this.cardDue.className = `due-pill card-due-pill ${st ? "due-" + st : "due-empty"}`;
+    this.cardDue.textContent = current.due ? `⏰ ${formatDue(current.due)}${current.repeat !== "none" ? " 🔁" : ""}` : "+ срок";
 
     if (this.isLazyModeActive) {
       this.cardActionTitle.textContent = current.lazyVersion || "Удели этому ровно 1 минуту — просто начни";
@@ -518,7 +695,11 @@ class NowApp {
       this.lazyBtn.style.display = "none";
     } else {
       this.cardActionTitle.textContent = current.action;
-      this.cardReason.textContent = current.reason || "Сделай сейчас, чтобы освободить мысли.";
+      const nextSub = current.subtasks.find(s => !s.done);
+      const doneSubs = current.subtasks.filter(s => s.done).length;
+      this.cardReason.textContent = nextSub
+        ? `Следующий шаг: ${nextSub.text} (${doneSubs}/${current.subtasks.length})`
+        : (current.notes || current.reason || "Сделай сейчас, чтобы освободить мысли.");
       this.cardDuration.textContent = `~${current.durationMinutes} мин`;
       this.lazyBanner.style.display = "none";
       this.lazyBtn.style.display = "inline-flex";
@@ -540,44 +721,61 @@ class NowApp {
     }
   }
 
-  renderDrawer() {
-    this.drawerTaskCounter.textContent = `Осталось действий: ${this.tasks.length}`;
-    this.drawerTasksList.innerHTML = "";
+  // --- Экран списка (To Do) ---
 
-    if (this.tasks.length === 0) {
-      this.drawerTasksList.innerHTML = `
-        <div class="drawer-empty">
-          Список пуст.<br>Нажми «Записать задачу» ниже.
-        </div>
-      `;
+  renderDrawer() {
+    if (!this.listTabs) return;
+    // Список мог быть удалён
+    if (!SMART_VIEWS.some(v => v.id === this.view) && !this.lists.some(l => l.id === this.view)) this.view = "all";
+
+    this.renderListTabs();
+    const items = this.viewTasks();
+    const title = this.searchQuery ? `Поиск: «${this.searchQuery}»` : this.viewName();
+    this.drawerTitle.textContent = title;
+    const openLeft = items.filter(t => !t.done).length;
+    this.drawerTaskCounter.textContent = this.view === "done" && !this.searchQuery
+      ? `Выполнено: ${items.length}`
+      : `Задач: ${openLeft}`;
+
+    // Действия со своим списком / выполненными
+    const custom = this.lists.find(l => l.id === this.view);
+    if (this.view === "done" && items.length && !this.searchQuery) {
+      this.listActions.innerHTML = `<button class="clean-btn" type="button" data-action="clear-done">Очистить выполненные</button>`;
+    } else if (custom && !this.searchQuery) {
+      this.listActions.innerHTML = `
+        <button class="clean-btn" type="button" data-action="rename-list">Переименовать</button>
+        ${custom.id !== "inbox" ? `<button class="clean-btn danger-text" type="button" data-action="delete-list">Удалить список</button>` : ""}`;
+    } else {
+      this.listActions.innerHTML = "";
+    }
+
+    if (items.length === 0) {
+      const emptyText = this.searchQuery ? "Ничего не найдено."
+        : this.view === "done" ? "Здесь появятся выполненные задачи."
+        : this.view === "planned" ? "Нет задач со сроком.<br>Добавь срок: «завтра в 15:00»."
+        : this.view === "myday" ? "Мой день пуст.<br>Задачи на сегодня и отмеченные ☀️ появятся здесь."
+        : "Список пуст.<br>Напиши задачу в поле выше.";
+      this.drawerTasksList.innerHTML = `<div class="drawer-empty">${emptyText}</div>`;
       return;
     }
 
     const currentId = this.currentVisibleId();
-
-    this.tasks.forEach((item) => {
-      const el = document.createElement("div");
-      el.className = `drawer-task-item ${item.id === currentId ? "active-item" : ""}`;
-      el.innerHTML = `
-        <div class="drawer-task-info">
-          <span class="drawer-task-title">${this.escapeHtml(item.action)}</span>
-          <span class="drawer-task-meta">${item.parentGoal ? this.escapeHtml(item.parentGoal) + " • " : ""}~${Number(item.durationMinutes) || 0} мин</span>
-        </div>
-        <button class="delete-task-btn" type="button" title="Удалить" aria-label="Удалить задачу">✕</button>
-      `;
-
-      el.addEventListener("click", (e) => {
-        if (e.target.closest(".delete-task-btn")) {
-          e.stopPropagation();
-          this.removeTask(item.id);
-          return;
-        }
-        this.jumpToTask(item.id);
-        this.closeDrawer();
+    if (this.view === "planned" && !this.searchQuery) {
+      // Группы как в «Напоминаниях»: просрочено / сегодня / завтра / неделя / позже
+      const now = new Date();
+      const groups = [["Просрочено", []], ["Сегодня", []], ["Завтра", []], ["На этой неделе", []], ["Позже", []]];
+      items.forEach(t => {
+        const d = parseLocalISO(t.due);
+        const diff = daysBetween(now, d);
+        const idx = d <= now ? 0 : diff === 0 ? 1 : diff === 1 ? 2 : diff < 7 ? 3 : 4;
+        groups[idx][1].push(t);
       });
-
-      this.drawerTasksList.appendChild(el);
-    });
+      this.drawerTasksList.innerHTML = groups.filter(g => g[1].length).map(([name, list]) =>
+        `<div class="todo-group-title ${name === "Просрочено" ? "overdue" : ""}">${name} · ${list.length}</div>` +
+        list.map(t => this.taskRowHtml(t, currentId)).join("")).join("");
+      return;
+    }
+    this.drawerTasksList.innerHTML = items.map(t => this.taskRowHtml(t, currentId)).join("");
   }
 
   renderSidebar() {
@@ -587,26 +785,36 @@ class NowApp {
       this.statDoneToday.textContent = this.doneToday;
     }
 
-    this.sidebarTasksList.innerHTML = "";
+    if (this.sidebarNav) {
+      const item = (id, emoji, name, count) => `
+        <button class="sidebar-nav-item" type="button" data-view="${this.escapeHtml(id)}">
+          <span class="sidebar-nav-emoji">${this.escapeHtml(emoji)}</span>
+          <span class="sidebar-nav-name">${this.escapeHtml(name)}</span>
+          ${count ? `<span class="sidebar-nav-count">${count}</span>` : ""}
+        </button>`;
+      this.sidebarNav.innerHTML =
+        SMART_VIEWS.filter(v => v.id !== "done").map(v => item(v.id, v.emoji, v.name, this.countInView(v.id))).join("") +
+        `<div class="sidebar-nav-sep"></div>` +
+        this.lists.map(l => item(l.id, l.emoji || "•", l.name, this.countInView(l.id))).join("");
+    }
 
-    if (this.tasks.length === 0) {
+    const queue = this.getActiveTasks();
+    if (queue.length === 0) {
       this.sidebarTasksList.innerHTML = `<div class="sidebar-empty-text">Всё сделано!<br>Нажми «+» чтобы добавить.</div>`;
       return;
     }
 
     const currentId = this.currentVisibleId();
-
-    this.tasks.forEach((item) => {
-      const el = document.createElement("div");
-      el.className = `sidebar-task-item ${item.id === currentId ? "current" : ""}`;
-      el.innerHTML = `
-        <span class="sidebar-task-dot"></span>
-        <span class="sidebar-task-text">${this.escapeHtml(item.action)}</span>
-        <span class="sidebar-task-time">~${Number(item.durationMinutes) || 0}м</span>
-      `;
-      el.addEventListener("click", () => this.jumpToTask(item.id));
-      this.sidebarTasksList.appendChild(el);
-    });
+    this.sidebarTasksList.innerHTML = queue.slice(0, 12).map(item => {
+      const st = dueState(item.due);
+      const right = item.due ? `<span class="sidebar-task-time due-${st}">${formatDue(item.due).replace(/^Сегодня, /, "")}</span>` : `<span class="sidebar-task-time">~${item.durationMinutes}м</span>`;
+      return `
+        <div class="sidebar-task-item ${item.id === currentId ? "current" : ""}" data-id="${this.escapeHtml(item.id)}">
+          <span class="sidebar-task-dot"></span>
+          <span class="sidebar-task-text">${this.escapeHtml(item.action)}</span>
+          ${right}
+        </div>`;
+    }).join("");
   }
 
   // id задачи, которая сейчас реально показана на карточке (без побочных эффектов)
@@ -764,23 +972,15 @@ class NowApp {
       return;
     }
 
-    this.playHapticTone("chime");
-    this.triggerConfetti();
-    this.showToast(`🎉 Готово: «${current.action}»`);
-
     const oldIndex = Math.max(0, this.getActiveTasks().findIndex(t => t.id === current.id));
     this.stopTimer();
-    this.tasks = this.tasks.filter(t => t.id !== current.id);
-    this.saveState();
+    this.completeTask(current.id, { celebrate: true });
     this.selectNextAfterRemoval(oldIndex);
-
-    this.refreshDoneDay();
-    this.doneToday++;
-    this.saveDoneToday();
-
     this.isLazyModeActive = false;
     this.animateCardSwitch();
   }
+
+  // Выполнение задачи: остаётся в «Выполнено», повторяющаяся создаёт следующую
 
   skipCurrentTask() {
     this.playHapticTone("tap");
@@ -805,19 +1005,17 @@ class NowApp {
   }
 
   animateCardSwitch() {
-    clearTimeout(this.flipOutTimeout);
     clearTimeout(this.flipInTimeout);
-    this.taskCard.classList.remove("flip-in");
-    this.taskCard.classList.add("flip-out");
-    this.flipOutTimeout = setTimeout(() => {
-      this.render();
-      this.taskCard.classList.remove("flip-out");
-      this.taskCard.classList.add("flip-in");
-      this.flipInTimeout = setTimeout(() => {
-        this.taskCard.classList.remove("flip-in");
-      }, 450);
-    }, 200);
+    this.render();
+    this.taskCard.classList.remove("flip-out", "flip-in");
+    void this.taskCard.offsetWidth; // перезапуск анимации
+    this.taskCard.classList.add("flip-in");
+    this.flipInTimeout = setTimeout(() => {
+      this.taskCard.classList.remove("flip-in");
+    }, 450);
   }
+
+  // --- Быстрое добавление в списке ---
 
   removeTask(id) {
     const task = this.getTaskById(id);
@@ -838,6 +1036,631 @@ class NowApp {
     this.render();
   }
 
+  normalizeTask(t) {
+    const subtasks = Array.isArray(t.subtasks)
+      ? t.subtasks.filter(s => s && typeof s.text === "string" && s.text.trim()).map(s => ({ id: String(s.id || makeId("sub")), text: s.text.trim(), done: !!s.done }))
+      : [];
+    const listIds = this.lists.length ? this.lists.map(l => l.id) : DEFAULT_LISTS.map(l => l.id);
+    return {
+      id: t.id,
+      action: String(t.action).trim(),
+      parentGoal: typeof t.parentGoal === "string" ? t.parentGoal : "",
+      reason: typeof t.reason === "string" ? t.reason : "",
+      lazyVersion: typeof t.lazyVersion === "string" ? t.lazyVersion : "",
+      durationMinutes: Number(t.durationMinutes) > 0 ? Math.min(240, Number(t.durationMinutes)) : 5,
+      list: listIds.includes(t.list) ? t.list : "inbox",
+      due: parseLocalISO(t.due) ? t.due : null,
+      repeat: REPEAT_LABELS[t.repeat] ? t.repeat : "none",
+      priority: [0, 1, 2, 3].includes(Number(t.priority)) ? Number(t.priority) : 0,
+      important: !!t.important,
+      myDay: typeof t.myDay === "string" ? t.myDay : null,
+      notes: typeof t.notes === "string" ? t.notes : "",
+      subtasks,
+      done: !!t.done,
+      doneAt: Number(t.doneAt) || null,
+      createdAt: Number(t.createdAt) || Date.now(),
+      n1h: !!t.n1h,
+      nDue: !!t.nDue
+    };
+  }
+
+  getOpenTasks() {
+    return this.tasks.filter(t => !t.done);
+  }
+
+  // Очередь карточки фокуса: сначала то, у чего срок сегодня/просрочен, потом по приоритету
+
+  getList(id) {
+    return this.lists.find(l => l.id === id) || this.lists[0];
+  }
+
+  // Подпись на карточке: свой список, иначе угаданная категория
+
+  taskLabel(t) {
+    if (t.list && t.list !== "inbox") {
+      const l = this.getList(t.list);
+      return `${l.emoji || ""} ${l.name}`.trim();
+    }
+    return t.parentGoal || "Задача";
+  }
+
+  viewName(view = this.view) {
+    const smart = SMART_VIEWS.find(v => v.id === view);
+    if (smart) return smart.name;
+    const l = this.lists.find(x => x.id === view);
+    return l ? l.name : "Все";
+  }
+
+  isInView(t, view, now, todayKey) {
+    if (view === "done") return t.done;
+    if (t.done) return false;
+    if (view === "all") return true;
+    if (view === "myday") {
+      const st = dueState(t.due, now);
+      return t.myDay === todayKey || st === "overdue" || st === "soon" || st === "today";
+    }
+    if (view === "planned") return !!t.due;
+    if (view === "important") return t.important || t.priority === 3;
+    return t.list === view;
+  }
+
+  viewTasks() {
+    const now = new Date();
+    const todayKey = localDateKey(now);
+    const q = this.searchQuery.trim().toLowerCase();
+    let items;
+    if (q) {
+      // Поиск — по всем задачам, включая выполненные
+      items = this.tasks.filter(t =>
+        t.action.toLowerCase().includes(q) ||
+        t.notes.toLowerCase().includes(q) ||
+        t.subtasks.some(s => s.text.toLowerCase().includes(q)));
+    } else {
+      items = this.tasks.filter(t => this.isInView(t, this.view, now, todayKey));
+    }
+    if (this.view === "done" && !q) {
+      return items.sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+    }
+    // Задачи со сроком — по сроку, остальные — по приоритету, затем в порядке добавления
+    return items
+      .map((t, i) => ({ t, i }))
+      .sort((a, b) =>
+        (a.t.done - b.t.done) ||
+        ((b.t.due ? 1 : 0) - (a.t.due ? 1 : 0)) ||
+        (a.t.due && b.t.due ? parseLocalISO(a.t.due) - parseLocalISO(b.t.due) : 0) ||
+        (b.t.priority - a.t.priority) ||
+        (a.i - b.i))
+      .map(x => x.t);
+  }
+
+  countInView(view) {
+    const now = new Date();
+    const todayKey = localDateKey(now);
+    return this.tasks.reduce((n, t) => n + (this.isInView(t, view, now, todayKey) ? 1 : 0), 0);
+  }
+
+  renderListTabs() {
+    const tab = (id, emoji, name, count) => `
+      <button class="list-tab ${this.view === id && !this.searchQuery ? "active" : ""}" type="button" data-view="${this.escapeHtml(id)}">
+        <span class="list-tab-emoji">${this.escapeHtml(emoji)}</span>
+        <span>${this.escapeHtml(name)}</span>
+        ${count ? `<span class="list-tab-count">${count}</span>` : ""}
+      </button>`;
+    this.listTabs.innerHTML =
+      SMART_VIEWS.map(v => tab(v.id, v.emoji, v.name, v.id === "done" ? 0 : this.countInView(v.id))).join("") +
+      `<span class="list-tabs-sep"></span>` +
+      this.lists.map(l => tab(l.id, l.emoji || "•", l.name, this.countInView(l.id))).join("") +
+      `<button class="list-tab list-tab-add" type="button" data-action="new-list">+ Список</button>`;
+  }
+
+  taskRowHtml(t, currentId) {
+    const now = new Date();
+    const st = dueState(t.due, now);
+    const meta = [];
+    if (t.due) meta.push(`<span class="due-chip due-${t.done ? "done" : st}">⏰ ${formatDue(t.due, now)}</span>`);
+    if (t.repeat !== "none") meta.push(`<span title="${REPEAT_LABELS[t.repeat]}">🔁 ${REPEAT_LABELS[t.repeat].toLowerCase()}</span>`);
+    if (t.subtasks.length) meta.push(`<span>☑ ${t.subtasks.filter(s => s.done).length}/${t.subtasks.length}</span>`);
+    if (t.myDay === localDateKey(now) && this.view !== "myday") meta.push(`<span>☀️</span>`);
+    if (t.notes) meta.push(`<span title="Есть заметка">📝</span>`);
+    if (this.searchQuery || SMART_VIEWS.some(v => v.id === this.view)) meta.push(`<span>${this.escapeHtml(this.taskLabel(t))}</span>`);
+    meta.push(`<span>~${t.durationMinutes} мин</span>`);
+
+    return `
+      <div class="todo-row ${t.done ? "is-done" : ""} ${t.id === currentId ? "is-current" : ""}" data-id="${this.escapeHtml(t.id)}">
+        <button class="todo-check prio-${t.priority}" type="button" data-action="toggle" aria-label="${t.done ? "Вернуть в работу" : "Отметить выполненной"}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </button>
+        <div class="todo-main" data-action="edit">
+          <div class="todo-title">${t.priority ? `<span class="prio-mark prio-${t.priority}">${"!".repeat(t.priority)}</span>` : ""}${this.escapeHtml(t.action)}</div>
+          <div class="todo-meta">${meta.join("")}</div>
+        </div>
+        <button class="todo-star ${t.important ? "on" : ""}" type="button" data-action="star" aria-label="Важное">${t.important ? "★" : "☆"}</button>
+      </div>`;
+  }
+
+  completeTask(id, { celebrate = false } = {}) {
+    const task = this.getTaskById(id);
+    if (!task || task.done) return;
+    if (this.timerTaskId === id) this.stopTimer();
+
+    task.done = true;
+    task.doneAt = Date.now();
+
+    let msg = `🎉 Готово: «${task.action}»`;
+    if (task.repeat !== "none") {
+      const nextDue = nextRepeat(task.due, task.repeat);
+      const next = this.normalizeTask({
+        ...task,
+        id: makeId(),
+        due: nextDue,
+        done: false,
+        doneAt: null,
+        myDay: null,
+        n1h: false,
+        nDue: false,
+        createdAt: Date.now(),
+        subtasks: task.subtasks.map(s => ({ ...s, id: makeId("sub"), done: false }))
+      });
+      const idx = this.tasks.indexOf(task);
+      this.tasks.splice(idx + 1, 0, next);
+      task.repeat = "none"; // выполненный экземпляр больше не повторяется
+      msg = `🔁 Готово! Следующий раз: ${formatDue(nextDue)}`;
+    }
+
+    this.refreshDoneDay();
+    this.doneToday++;
+    this.saveDoneToday();
+    this.saveState();
+
+    this.playHapticTone("chime");
+    if (celebrate) this.triggerConfetti();
+    this.showToast(msg);
+  }
+
+  uncompleteTask(id) {
+    const task = this.getTaskById(id);
+    if (!task || !task.done) return;
+    if (task.doneAt && localDateKey(new Date(task.doneAt)) === localDateKey()) {
+      this.refreshDoneDay();
+      this.doneToday = Math.max(0, this.doneToday - 1);
+      this.saveDoneToday();
+    }
+    task.done = false;
+    task.doneAt = null;
+    this.saveState();
+    this.playHapticTone("tap");
+    this.showToast("Задача возвращена в работу");
+  }
+
+  toggleTaskDone(id) {
+    const task = this.getTaskById(id);
+    if (!task) return;
+    if (task.done) {
+      this.uncompleteTask(id);
+    } else {
+      const wasCurrent = id === this.currentVisibleId();
+      const oldIndex = Math.max(0, this.getActiveTasks().findIndex(t => t.id === id));
+      this.completeTask(id);
+      if (wasCurrent) {
+        this.isLazyModeActive = false;
+        this.selectNextAfterRemoval(oldIndex);
+      }
+    }
+    this.render();
+  }
+
+  toggleImportant(id) {
+    const task = this.getTaskById(id);
+    if (!task) return;
+    task.important = !task.important;
+    this.saveState();
+    this.playHapticTone("tap");
+    this.render();
+  }
+
+  // Мгновенная смена карточки: сначала рисуем, потом короткая анимация появления (без задержки)
+
+  addQuickTask(text) {
+    const parsed = parseQuickInput(text);
+    const title = this.cleanText(parsed.title || "");
+    if (!parsed.title || title.length < 1) {
+      this.showToast("Напиши название задачи");
+      return null;
+    }
+
+    let listId = this.lists.some(l => l.id === this.view) ? this.view : "inbox";
+    if (parsed.listName) {
+      const found = this.lists.find(l => l.name.toLowerCase() === parsed.listName.toLowerCase());
+      listId = found ? found.id : this.createList(parsed.listName).id;
+    }
+
+    const todayKey = localDateKey();
+    let due = parsed.due;
+    if (!due && this.view === "planned") {
+      const today = startOfDay(new Date());
+      due = `${localDateKey(today)}T${defaultTimeFor(today)}`;
+    }
+
+    const task = this.normalizeTask({
+      id: makeId(),
+      action: title,
+      parentGoal: this.guessParentGoal(title),
+      reason: "",
+      durationMinutes: this.guessDuration(title),
+      lazyVersion: "Удели этому ровно 1 минуту — просто начни",
+      list: listId,
+      due,
+      priority: parsed.priority,
+      important: this.view === "important",
+      myDay: this.view === "myday" ? todayKey : null
+    });
+    this.tasks.unshift(task);
+    this.saveState();
+    this.checkDeadlines();
+    this.playHapticTone("tap");
+    this.render();
+    this.showToast(due ? `Добавлено · ⏰ ${formatDue(due)}` : "Задача добавлена");
+    return task;
+  }
+
+  updateQuickAddHint() {
+    const text = this.quickAddInput.value;
+    if (!text.trim()) {
+      this.quickAddHint.textContent = "";
+      this.quickAddHint.classList.remove("show");
+      return;
+    }
+    const p = parseQuickInput(text);
+    const parts = [];
+    if (p.due) parts.push(`⏰ ${formatDue(p.due)}`);
+    if (p.priority) parts.push(`${"!".repeat(p.priority)} ${PRIORITY_LABELS[p.priority].toLowerCase()}`);
+    if (p.listName) parts.push(`# ${p.listName}`);
+    this.quickAddHint.textContent = parts.join("  ·  ");
+    this.quickAddHint.classList.toggle("show", parts.length > 0);
+  }
+
+  // --- Свои списки ---
+
+  createList(name) {
+    const clean = String(name || "").trim().slice(0, 40);
+    if (!clean) return null;
+    const existing = this.lists.find(l => l.name.toLowerCase() === clean.toLowerCase());
+    if (existing) return existing;
+    const list = { id: makeId("list"), name: clean, emoji: "•" };
+    this.lists.push(list);
+    this.saveState();
+    return list;
+  }
+
+  promptNewList() {
+    const name = window.prompt("Название нового списка");
+    if (name === null) return;
+    const list = this.createList(name);
+    if (!list) {
+      this.showToast("Название не может быть пустым");
+      return;
+    }
+    this.setView(list.id);
+  }
+
+  renameCurrentList() {
+    const list = this.lists.find(l => l.id === this.view);
+    if (!list) return;
+    const name = window.prompt("Новое название списка", list.name);
+    if (name === null || !name.trim()) return;
+    list.name = name.trim().slice(0, 40);
+    this.saveState();
+    this.render();
+  }
+
+  deleteCurrentList() {
+    const list = this.lists.find(l => l.id === this.view);
+    if (!list || list.id === "inbox") return;
+    const count = this.tasks.filter(t => t.list === list.id).length;
+    const ok = window.confirm(count ? `Удалить список «${list.name}»? ${count} задач(и) перейдут во «Входящие».` : `Удалить список «${list.name}»?`);
+    if (!ok) return;
+    this.tasks.forEach(t => { if (t.list === list.id) t.list = "inbox"; });
+    this.lists = this.lists.filter(l => l.id !== list.id);
+    this.saveState();
+    this.setView("inbox");
+    this.showToast("Список удалён");
+  }
+
+  clearDone() {
+    const n = this.tasks.filter(t => t.done).length;
+    if (!n || !window.confirm(`Удалить ${n} выполненных задач навсегда?`)) return;
+    this.tasks = this.tasks.filter(t => !t.done);
+    this.saveState();
+    this.render();
+  }
+
+  setView(view) {
+    this.view = view;
+    this.searchQuery = "";
+    if (this.taskSearch) this.taskSearch.value = "";
+    this.playHapticTone("tap");
+    this.renderDrawer();
+    this.drawerTasksList.scrollTop = 0;
+  }
+
+  // --- Сроки и уведомления за час ---
+
+  startDeadlineWatcher() {
+    this.checkDeadlines();
+    clearInterval(this.deadlineInterval);
+    this.deadlineInterval = setInterval(() => {
+      this.checkDeadlines();
+      // Перерисовка раз в день (подписи «Сегодня/Завтра») и на смене состояний срока
+      if (localDateKey() !== this.lastRenderDay) this.render();
+    }, DEADLINE_CHECK_MS);
+  }
+
+  checkDeadlines() {
+    const now = Date.now();
+    let changed = false;
+    for (const t of this.tasks) {
+      if (t.done || !t.due) continue;
+      const d = parseLocalISO(t.due);
+      if (!d) continue;
+      const left = d.getTime() - now;
+      if (left <= 0) {
+        if (!t.nDue) {
+          t.nDue = true;
+          t.n1h = true;
+          changed = true;
+          if (-left < STALE_ALERT_MS) this.alertDeadline(t, "⏰ Срок вышел", `«${t.action}» — срок был ${formatDue(t.due)}`);
+        }
+      } else if (left <= HOUR_MS && !t.n1h) {
+        t.n1h = true;
+        changed = true;
+        const mins = Math.max(1, Math.round(left / 60000));
+        const title = mins >= 58 ? "⏳ Через час срок" : `⏳ До срока ${mins} мин`;
+        this.alertDeadline(t, title, `«${t.action}» — нужно успеть до ${formatDue(t.due).toLowerCase()}`);
+      }
+    }
+    if (changed) {
+      this.saveState();
+      this.render();
+    }
+  }
+
+  alertDeadline(task, title, body) {
+    this.sendNotification(title, body, `now-due-${task.id}`);
+    if (!document.hidden) {
+      this.showToast(`${title}: ${task.action}`);
+      this.playHapticTone("zen");
+    }
+  }
+
+  openEditor(id = null) {
+    this.playHapticTone("tap");
+    this.closeAllOverlays({ keepDrawer: true });
+    const task = id ? this.getTaskById(id) : null;
+    this.editIsNew = !task;
+    const todayKey = localDateKey();
+    this.editDraft = task
+      ? JSON.parse(JSON.stringify(task))
+      : this.normalizeTask({
+          id: makeId(),
+          action: "",
+          list: this.lists.some(l => l.id === this.view) ? this.view : "inbox",
+          important: this.view === "important",
+          myDay: this.view === "myday" ? todayKey : null,
+          durationMinutes: 5
+        });
+    const d = this.editDraft;
+
+    this.editSheetTitle.textContent = this.editIsNew ? "Новая задача" : "Задача";
+    this.editTitle.value = d.action;
+    this.editNotes.value = d.notes;
+    const due = parseLocalISO(d.due);
+    this.editDate.value = due ? localDateKey(due) : "";
+    this.setEditorTime(due ? `${pad2(due.getHours())}:${pad2(due.getMinutes())}` : "");
+    this.editRepeat.value = d.repeat;
+    this.editList.innerHTML = this.lists.map(l => `<option value="${this.escapeHtml(l.id)}">${this.escapeHtml((l.emoji && l.emoji !== "•" ? l.emoji + " " : "") + l.name)}</option>`).join("");
+    this.editList.value = d.list;
+    const durations = [1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 45, 60, 90, 120];
+    if (!durations.includes(d.durationMinutes)) durations.push(d.durationMinutes);
+    this.editDuration.innerHTML = durations.sort((a, b) => a - b).map(m => `<option value="${m}">${m} мин</option>`).join("");
+    this.editDuration.value = String(d.durationMinutes);
+    this.editDeleteBtn.style.display = this.editIsNew ? "none" : "";
+    this.editFocusBtn.style.display = this.editIsNew || d.done ? "none" : "";
+    this.subtaskInput.value = "";
+    this.renderEditorState();
+
+    this.editSheetBackdrop.classList.add("active");
+    if (this.editIsNew) setTimeout(() => this.editTitle.focus(), 250);
+  }
+
+  renderEditorState() {
+    const d = this.editDraft;
+    if (!d) return;
+    this.editPriority.querySelectorAll("[data-p]").forEach(b => b.classList.toggle("active", Number(b.dataset.p) === d.priority));
+    this.editImportant.classList.toggle("active", d.important);
+    this.editImportant.textContent = d.important ? "★ Важное" : "☆ Важное";
+    const inMyDay = d.myDay === localDateKey();
+    this.editMyDay.classList.toggle("active", inMyDay);
+    this.editMyDay.textContent = inMyDay ? "☀️ В моём дне" : "☀️ Мой день";
+    this.editSubtasks.innerHTML = d.subtasks.map(s => `
+      <div class="subtask-row ${s.done ? "is-done" : ""}" data-sub="${this.escapeHtml(s.id)}">
+        <button class="todo-check small" type="button" data-sub-action="toggle" aria-label="Выполнить шаг">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </button>
+        <span class="subtask-text">${this.escapeHtml(s.text)}</span>
+        <button class="delete-task-btn" type="button" data-sub-action="delete" aria-label="Удалить шаг">✕</button>
+      </div>`).join("");
+    this.updateDueHint();
+  }
+
+  // Читаем дату/время из полей. Пустое время = время по умолчанию; пустая дата при заданном времени = ближайший такой момент
+
+  readEditorDue() {
+    const dateStr = this.editDate.value;
+    const timeStr = this.getEditorTime();
+    if (!dateStr && !timeStr) return { due: null };
+    const now = new Date();
+    let date;
+    if (dateStr) {
+      const [y, m, dd] = dateStr.split("-").map(Number);
+      date = new Date(y, m - 1, dd);
+      if (!y || date.getDate() !== dd) return { error: "Неверная дата" };
+    }
+    let hh, mm;
+    if (timeStr) {
+      const mt = /^(\d{1,2}):(\d{2})/.exec(timeStr);
+      if (!mt || +mt[1] > 23 || +mt[2] > 59) return { error: "Время должно быть от 00:00 до 23:59" };
+      hh = +mt[1]; mm = +mt[2];
+      if (!date) {
+        date = startOfDay(now);
+        if (hh * 60 + mm <= now.getHours() * 60 + now.getMinutes()) date = addDays(date, 1);
+      }
+    } else {
+      [hh, mm] = defaultTimeFor(date, now).split(":").map(Number);
+    }
+    return { due: toLocalISO(new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh, mm)) };
+  }
+
+  updateDueHint() {
+    const { due, error } = this.readEditorDue();
+    const hint = this.editDueHint;
+    hint.classList.remove("warn");
+    if (error) {
+      hint.textContent = error;
+      hint.classList.add("warn");
+    } else if (!due) {
+      hint.textContent = "Без срока. Выбери дату и время — напомним за час.";
+    } else {
+      const left = parseLocalISO(due) - Date.now();
+      if (left <= 0) {
+        hint.textContent = `${formatDue(due)} — это время уже прошло`;
+        hint.classList.add("warn");
+      } else {
+        hint.textContent = left > HOUR_MS
+          ? `${formatDue(due)} · напомним в ${formatDue(toLocalISO(new Date(parseLocalISO(due) - HOUR_MS))).split(", ").pop()} (за час)`
+          : `${formatDue(due)} · меньше часа — напомним сразу`;
+      }
+    }
+  }
+
+  setEditorQuickDue(kind) {
+    const now = new Date();
+    if (kind === "none") {
+      this.editDate.value = "";
+      this.setEditorTime("");
+      this.editRepeat.value = "none";
+    } else {
+      const base = kind === "today" ? startOfDay(now) : kind === "tomorrow" ? addDays(startOfDay(now), 1) : addDays(startOfDay(now), (8 - now.getDay()) % 7 || 7);
+      this.editDate.value = localDateKey(base);
+      const cur = this.getEditorTime();
+      if (!cur || (kind === "today" && parseLocalISO(`${localDateKey(base)}T${cur}`) <= now)) {
+        this.setEditorTime(defaultTimeFor(base, now));
+      }
+    }
+    this.playHapticTone("tap");
+    this.updateDueHint();
+  }
+
+  saveEditor() {
+    const d = this.editDraft;
+    if (!d) return;
+    const title = this.editTitle.value.trim();
+    if (!title) {
+      this.showToast("Напиши название задачи");
+      this.editTitle.focus();
+      return;
+    }
+    const { due, error } = this.readEditorDue();
+    if (error) {
+      this.showToast(error);
+      return;
+    }
+    const repeat = this.editRepeat.value;
+
+    d.action = title;
+    d.notes = this.editNotes.value.trim();
+    d.list = this.editList.value;
+    d.durationMinutes = Number(this.editDuration.value) || 5;
+    d.repeat = repeat;
+    // Повтор без срока: считаем от сегодняшнего дня
+    let finalDue = due;
+    if (repeat !== "none" && !finalDue) {
+      const today = startOfDay(new Date());
+      finalDue = `${localDateKey(today)}T${defaultTimeFor(today)}`;
+    }
+    const old = this.editIsNew ? null : this.getTaskById(d.id);
+    if (!old || old.due !== finalDue) {
+      d.n1h = false; // срок изменился — уведомления заново
+      d.nDue = false;
+    }
+    d.due = finalDue;
+    if (this.editIsNew && !d.parentGoal) d.parentGoal = this.guessParentGoal(title);
+
+    const task = this.normalizeTask(d);
+    if (old) {
+      this.tasks[this.tasks.indexOf(old)] = task;
+    } else {
+      this.tasks.unshift(task);
+    }
+    this.saveState();
+    this.closeEditor();
+    this.checkDeadlines();
+    this.render();
+    this.playHapticTone("tap");
+    this.showToast(this.editIsNew ? "Задача добавлена" : "Сохранено");
+  }
+
+  // Время — два списка (часы 00–23, минуты 00–59): формат 24 ч на любом устройстве
+  fillTimeSelects() {
+    if (this.editHour.options.length) return;
+    this.editHour.innerHTML = `<option value="">--</option>` + Array.from({ length: 24 }, (_, h) => `<option value="${pad2(h)}">${pad2(h)}</option>`).join("");
+    this.editMinute.innerHTML = `<option value="">--</option>` + Array.from({ length: 60 }, (_, m) => `<option value="${pad2(m)}">${pad2(m)}</option>`).join("");
+  }
+
+  getEditorTime() {
+    const h = this.editHour.value;
+    const m = this.editMinute.value;
+    if (!h && !m) return "";
+    return `${h || "00"}:${m || "00"}`;
+  }
+
+  setEditorTime(hhmm) {
+    this.fillTimeSelects();
+    const [h, m] = hhmm ? hhmm.split(":") : ["", ""];
+    this.editHour.value = h;
+    this.editMinute.value = m;
+  }
+
+  closeEditor() {
+    this.editSheetBackdrop.classList.remove("active");
+    this.editDraft = null;
+  }
+
+  deleteFromEditor() {
+    const d = this.editDraft;
+    if (!d || this.editIsNew) return;
+    this.closeEditor();
+    this.removeTask(d.id);
+    this.showToast("Задача удалена");
+  }
+
+  pluralTasks(n) {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return "задача";
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "задачи";
+    return "задач";
+  }
+
+  // Каждое дело = одна задача с ТВОИМ текстом. Категория только подписывает её,
+  // срок/приоритет/#список берутся из текста («завтра в 15:00 !1 #Работа»).
+
+  renderDumpListChips() {
+    if (!this.dumpListChips) return;
+    const chip = (id, label) => `<button type="button" class="preset-chip ${this.dumpListId === id ? "active" : ""}" data-list="${this.escapeHtml(id || "")}">${this.escapeHtml(label)}</button>`;
+    this.dumpListChips.innerHTML = chip(null, "✨ Авто") +
+      this.lists.map(l => chip(l.id, `${l.emoji && l.emoji !== "•" ? l.emoji + " " : ""}${l.name}`)).join("");
+  }
+
   // --- Brain Dump & Decomposition ---
   handleBrainDump(text) {
     if (!text || !text.trim()) {
@@ -854,13 +1677,14 @@ class NowApp {
 
     this.tasks.unshift(...newItems);
     this.saveState();
+    this.checkDeadlines();
     this.closeDumpSheet(true);
     this.playHapticTone("chime");
 
-    const word = this.pluralSteps(newItems.length);
+    const word = this.pluralTasks(newItems.length);
     if (this.isTimerRunning) {
-      // Не сбиваем текущий таймер — новые шаги ждут своей очереди
-      this.showToast(`✨ Добавлено ${newItems.length} ${word} — после текущего`);
+      // Не сбиваем текущий таймер — новые задачи ждут своей очереди
+      this.showToast(`✨ Добавлено ${newItems.length} ${word} — после текущей`);
       this.render();
       return;
     }
@@ -870,16 +1694,8 @@ class NowApp {
     if (this.activeTimeFilter && newItems[0].durationMinutes > this.activeTimeFilter) {
       this.activeTimeFilter = null;
     }
-    this.showToast(`✨ Разложено на ${newItems.length} ${word}`);
+    this.showToast(`✨ Добавлено ${newItems.length} ${word}`);
     this.animateCardSwitch();
-  }
-
-  pluralSteps(n) {
-    const mod10 = n % 10;
-    const mod100 = n % 100;
-    if (mod10 === 1 && mod100 !== 11) return "шаг";
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "шага";
-    return "шагов";
   }
 
   // Убираем «надо», «нужно», «не забыть» и т.п. в начале фразы
@@ -942,41 +1758,39 @@ class NowApp {
 
   atomizeThought(input) {
     const thoughts = this.splitThoughts(input);
-    const allItems = [];
+    const todayKey = localDateKey();
+    const items = [];
 
     for (const thought of thoughts) {
-      const cleaned = this.cleanText(thought);
+      const parsed = parseQuickInput(thought);
+      const cleaned = this.cleanText(parsed.title || thought);
       if (cleaned.length < 2) continue;
-      const lower = cleaned.toLowerCase();
+      const category = this.guessParentGoal(cleaned);
 
-      const rule = ATOMIZER_RULES.find(r => r.regex.test(lower));
-      if (rule) {
-        const multi = rule.steps.length > 1;
-        rule.steps.forEach((st) => {
-          allItems.push({
-            id: makeId(),
-            // У многошаговых дел бейджем служит сама формулировка пользователя
-            parentGoal: multi ? this.truncate(cleaned, 40) : (rule.parent || this.guessParentGoal(cleaned)),
-            action: st.action.replace("{text}", cleaned),
-            reason: st.reason,
-            durationMinutes: st.duration,
-            lazyVersion: st.lazy
-          });
-        });
-        continue;
+      let listId = this.dumpListId;
+      if (parsed.listName) {
+        const found = this.lists.find(l => l.name.toLowerCase() === parsed.listName.toLowerCase());
+        listId = found ? found.id : this.createList(parsed.listName).id;
+      }
+      if (!listId) {
+        const byCategory = this.lists.find(l => l.name.toLowerCase() === category.toLowerCase());
+        listId = byCategory ? byCategory.id : "inbox";
       }
 
-      allItems.push({
+      items.push(this.normalizeTask({
         id: makeId(),
-        parentGoal: this.guessParentGoal(cleaned),
+        parentGoal: category,
         action: cleaned,
         reason: "Выгружено из головы — сделай сейчас.",
         durationMinutes: this.guessDuration(cleaned),
-        lazyVersion: "Удели этому ровно 1 минуту — просто начни"
-      });
+        lazyVersion: "Удели этому ровно 1 минуту — просто начни",
+        list: listId,
+        due: parsed.due,
+        priority: parsed.priority,
+        myDay: todayKey
+      }));
     }
-
-    return allItems;
+    return items;
   }
 
   guessParentGoal(text) {
@@ -1056,11 +1870,12 @@ class NowApp {
   }
 
   // --- Sheets & Modals Management ---
-  closeAllOverlays() {
+  closeAllOverlays({ keepDrawer = false } = {}) {
     this.closeDumpSheet();
     this.closeTimeSheet();
-    this.closeDrawer();
+    if (!keepDrawer) this.closeDrawer();
     this.closePomodoroSheet();
+    if (this.editSheetBackdrop) this.closeEditor();
   }
 
   isAnyOverlayOpen() {
@@ -1070,6 +1885,7 @@ class NowApp {
   openDumpSheet() {
     this.playHapticTone("tap");
     this.closeAllOverlays();
+    this.renderDumpListChips();
     this.dumpSheetBackdrop.classList.add("active");
     setTimeout(() => this.dumpTextarea.focus(), 250);
   }
@@ -1091,9 +1907,14 @@ class NowApp {
     this.timeSheetBackdrop.classList.remove("active");
   }
 
-  openDrawer() {
+  openDrawer(view = null) {
     this.playHapticTone("tap");
     this.closeAllOverlays();
+    if (view) {
+      this.view = view;
+      this.searchQuery = "";
+      if (this.taskSearch) this.taskSearch.value = "";
+    }
     this.renderDrawer();
     this.listDrawerBackdrop.classList.add("active");
   }
@@ -1236,14 +2057,13 @@ class NowApp {
     });
     this.voiceInputBtn.addEventListener("click", () => this.toggleVoiceInput());
 
-    // Preset chips: добавляют пример к уже написанному, а не затирают его
-    document.querySelectorAll(".preset-chip").forEach(chip => {
-      chip.addEventListener("click", () => {
-        const sample = chip.getAttribute("data-sample");
-        const prev = this.dumpTextarea.value.trim();
-        this.dumpTextarea.value = prev ? `${prev}\n${sample}` : sample;
-        this.dumpTextarea.focus();
-      });
+    // Чипы списков: выбирают, КУДА положить задачи. Текст не трогают.
+    this.dumpListChips.addEventListener("click", (e) => {
+      const chip = e.target.closest("[data-list]");
+      if (!chip) return;
+      this.dumpListId = chip.dataset.list || null;
+      this.playHapticTone("tap");
+      this.renderDumpListChips();
     });
 
     // Time filter presets
@@ -1276,11 +2096,142 @@ class NowApp {
     this.listCloseBtn.addEventListener("click", () => this.closeDrawer());
     this.listBackBtn.addEventListener("click", () => this.closeDrawer());
     this.drawerExitBtn.addEventListener("click", () => this.closeDrawer());
-    this.drawerAddBtn.addEventListener("click", () => this.openDumpSheet());
+    this.drawerAddBtn.addEventListener("click", () => this.openEditor(null));
     this.listDrawerBackdrop.addEventListener("click", (e) => {
       if (e.target === this.listDrawerBackdrop) this.closeDrawer();
     });
     this.forceNotifBtn.addEventListener("click", () => this.onManualNotifRequest());
+
+    // Вкладки списков
+    this.listTabs.addEventListener("click", (e) => {
+      const btn = e.target.closest(".list-tab");
+      if (!btn) return;
+      if (btn.dataset.action === "new-list") this.promptNewList();
+      else this.setView(btn.dataset.view);
+    });
+    this.listActions.addEventListener("click", (e) => {
+      const act = e.target.closest("[data-action]");
+      if (!act) return;
+      if (act.dataset.action === "clear-done") this.clearDone();
+      if (act.dataset.action === "rename-list") this.renameCurrentList();
+      if (act.dataset.action === "delete-list") this.deleteCurrentList();
+    });
+
+    // Строки задач: один обработчик на весь список
+    this.drawerTasksList.addEventListener("click", (e) => {
+      const row = e.target.closest(".todo-row");
+      if (!row) return;
+      const id = row.dataset.id;
+      const act = e.target.closest("[data-action]");
+      const action = act ? act.dataset.action : "edit";
+      if (action === "toggle") this.toggleTaskDone(id);
+      else if (action === "star") this.toggleImportant(id);
+      else this.openEditor(id);
+    });
+
+    this.taskSearch.addEventListener("input", () => {
+      this.searchQuery = this.taskSearch.value;
+      this.renderDrawer();
+    });
+
+    this.quickAddForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (this.addQuickTask(this.quickAddInput.value)) {
+        this.quickAddInput.value = "";
+        this.updateQuickAddHint();
+      }
+    });
+    this.quickAddInput.addEventListener("input", () => this.updateQuickAddHint());
+
+    // Боковая панель (компьютер)
+    if (this.sidebarNav) {
+      this.sidebarNav.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-view]");
+        if (btn) this.openDrawer(btn.dataset.view);
+      });
+    }
+    this.sidebarTasksList.addEventListener("click", (e) => {
+      const item = e.target.closest("[data-id]");
+      if (item) this.jumpToTask(item.dataset.id);
+    });
+
+    // Срок на карточке → редактор
+    this.cardDue.addEventListener("click", () => {
+      const t = this.getCurrentTask();
+      if (t) this.openEditor(t.id);
+    });
+
+    // Редактор задачи
+    this.editCloseBtn.addEventListener("click", () => this.closeEditor());
+    this.editSheetBackdrop.addEventListener("click", (e) => {
+      if (e.target === this.editSheetBackdrop) this.closeEditor();
+    });
+    this.editSaveBtn.addEventListener("click", () => this.saveEditor());
+    this.editDeleteBtn.addEventListener("click", () => this.deleteFromEditor());
+    this.editFocusBtn.addEventListener("click", () => {
+      const id = this.editDraft && this.editDraft.id;
+      this.saveEditor();
+      this.closeDrawer();
+      if (id) this.jumpToTask(id);
+    });
+    this.editTitle.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); this.saveEditor(); }
+    });
+    this.editDate.addEventListener("input", () => {
+      if (this.editDate.value && !this.getEditorTime()) {
+        const [y, m, d] = this.editDate.value.split("-").map(Number);
+        this.setEditorTime(defaultTimeFor(new Date(y, m - 1, d)));
+      }
+      this.updateDueHint();
+    });
+    this.editHour.addEventListener("change", () => {
+      if (this.editHour.value && !this.editMinute.value) this.editMinute.value = "00";
+      this.updateDueHint();
+    });
+    this.editMinute.addEventListener("change", () => {
+      if (this.editMinute.value && !this.editHour.value) this.editHour.value = "00";
+      this.updateDueHint();
+    });
+    document.querySelectorAll("[data-due]").forEach(btn => {
+      btn.addEventListener("click", () => this.setEditorQuickDue(btn.dataset.due));
+    });
+    this.editPriority.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-p]");
+      if (!b || !this.editDraft) return;
+      this.editDraft.priority = Number(b.dataset.p);
+      this.playHapticTone("tap");
+      this.renderEditorState();
+    });
+    this.editImportant.addEventListener("click", () => {
+      if (!this.editDraft) return;
+      this.editDraft.important = !this.editDraft.important;
+      this.renderEditorState();
+    });
+    this.editMyDay.addEventListener("click", () => {
+      if (!this.editDraft) return;
+      const today = localDateKey();
+      this.editDraft.myDay = this.editDraft.myDay === today ? null : today;
+      this.renderEditorState();
+    });
+    this.subtaskForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = this.subtaskInput.value.trim();
+      if (!text || !this.editDraft) return;
+      this.editDraft.subtasks.push({ id: makeId("sub"), text, done: false });
+      this.subtaskInput.value = "";
+      this.renderEditorState();
+    });
+    this.editSubtasks.addEventListener("click", (e) => {
+      const row = e.target.closest("[data-sub]");
+      const act = e.target.closest("[data-sub-action]");
+      if (!row || !act || !this.editDraft) return;
+      const sub = this.editDraft.subtasks.find(x => x.id === row.dataset.sub);
+      if (!sub) return;
+      if (act.dataset.subAction === "toggle") sub.done = !sub.done;
+      else this.editDraft.subtasks = this.editDraft.subtasks.filter(x => x !== sub);
+      this.playHapticTone("tap");
+      this.renderEditorState();
+    });
 
     // Notification permission sheet
     this.notifAllowBtn.addEventListener("click", () => this.requestNotifPermission());
@@ -1292,6 +2243,8 @@ class NowApp {
     // Keyboard: Escape закрывает окна, пробел — старт/пауза
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        // Сначала закрываем верхнее окно (редактор поверх списка)
+        if (this.editSheetBackdrop.classList.contains("active")) { this.closeEditor(); return; }
         this.closeAllOverlays();
         this.closeNotifSheet();
         return;
@@ -1409,14 +2362,14 @@ class NowApp {
     this.requestNotifPermission();
   }
 
-  async sendNotification(title, body) {
+  async sendNotification(title, body, tag = "now-timer-alert") {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
     const options = {
       body,
       icon: "icon-192.png",
       badge: "icon-192.png",
       vibrate: [200, 100, 200],
-      tag: "now-timer-alert",
+      tag,
       renotify: true
     };
     try {
@@ -1427,11 +2380,13 @@ class NowApp {
           return;
         }
       }
-      new Notification(title, { body, icon: "icon-192.png" });
+      new Notification(title, { body, icon: "icon-192.png", tag });
     } catch (e) {
       console.warn("Notification send error:", e);
     }
   }
+
+  // --- Редактор задачи ---
 
   // ==========================================================================
   // Pomodoro Engine (timestamps)
@@ -1652,6 +2607,13 @@ class NowApp {
 }
 
 // Start app on DOMContentLoaded
-document.addEventListener("DOMContentLoaded", () => {
-  window.nowApp = new NowApp();
-});
+if (typeof document !== "undefined") {
+  document.addEventListener("DOMContentLoaded", () => {
+    window.nowApp = new NowApp();
+  });
+}
+
+// Для проверки разбора дат в Node: node test_dates.js
+if (typeof module !== "undefined") {
+  module.exports = { parseQuickInput, parseLocalISO, toLocalISO, nextRepeat, dueState, formatDue, defaultTimeFor };
+}

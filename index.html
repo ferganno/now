@@ -40,7 +40,12 @@
       </div>
 
       <div class="sidebar-section">
-        <h3 class="sidebar-section-title">Действия</h3>
+        <h3 class="sidebar-section-title">Списки</h3>
+        <nav class="sidebar-nav" id="sidebarNav"></nav>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="sidebar-section-title">Очередь</h3>
         <div class="sidebar-tasks-list" id="sidebarTasksList">
           <!-- Populated by JS -->
         </div>
@@ -131,6 +136,7 @@
             <span class="parent-task-badge" id="cardParentTask"></span>
             <span class="time-estimate-pill" id="cardDuration"></span>
           </div>
+          <button class="due-pill card-due-pill" id="cardDue" type="button" aria-label="Срок задачи"></button>
 
           <div class="card-body">
             <h1 class="action-title" id="cardActionTitle"></h1>
@@ -234,19 +240,15 @@
         <h3 class="sheet-title">Выгрузка из головы</h3>
         <button class="sheet-close-btn" id="dumpCloseBtn">✕</button>
       </div>
-      <p class="sheet-subtitle">Напиши или надиктуй всё, что крутится в мыслях — через запятую или с новой строки. Мы превратим это в шаги по 2–10 минут.</p>
+      <p class="sheet-subtitle">Напиши или надиктуй всё, что крутится в мыслях — через запятую или с новой строки. Каждое дело станет задачей. Срок можно писать прямо в тексте: «завтра в 15:00».</p>
 
       <form id="dumpForm">
         <div class="input-wrap">
-          <textarea id="dumpTextarea" placeholder="Например: разобраться с документами на визу, позвонить бабушке, сделать уборку в комнате..." rows="3"></textarea>
+          <textarea id="dumpTextarea" placeholder="Например: позвонить бабушке завтра в 18:00, оплатить интернет до 5.10, убраться в комнате" rows="3"></textarea>
         </div>
 
-        <div class="preset-suggestions">
-          <span class="preset-chip" data-sample="Убраться в комнате">🧹 Уборка</span>
-          <span class="preset-chip" data-sample="Сделать уроки по математике">📐 Уроки</span>
-          <span class="preset-chip" data-sample="Разобраться с документами">📂 Документы</span>
-          <span class="preset-chip" data-sample="Купить подарок маме">🎁 Подарок</span>
-        </div>
+        <div class="dump-list-label">Куда добавить</div>
+        <div class="preset-suggestions" id="dumpListChips"></div>
 
         <div class="sheet-footer">
           <button type="button" class="speech-btn" id="voiceInputBtn">
@@ -254,7 +256,7 @@
             <span id="voiceBtnText">Голос</span>
           </button>
           <button type="submit" class="primary-btn submit-dump-btn" id="dumpSubmitBtn">
-            <span>Превратить в шаги</span>
+            <span>Добавить задачи</span>
             <span class="btn-sparkle">✨</span>
           </button>
         </div>
@@ -376,22 +378,36 @@
     </div>
   </div>
 
-  <!-- Backlog Drawer (Full List View) -->
+  <!-- Список задач (To Do): умные списки, свои списки, сроки -->
   <div class="drawer-backdrop" id="listDrawerBackdrop">
     <div class="side-drawer" id="listDrawer">
-      <div class="drawer-header" style="display: flex; align-items: center; justify-content: space-between;">
-        <button class="clean-btn" id="listBackBtn" type="button" aria-label="Закрыть список" style="color: var(--accent-blue); padding: 0; font-size: 16px; display: flex; align-items: center; width: 70px;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: -2px;"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      <div class="drawer-header todo-header">
+        <button class="clean-btn back-link" id="listBackBtn" type="button" aria-label="Закрыть список">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
           Назад
         </button>
-        <div style="flex: 1; text-align: center;">
-          <h2 class="drawer-title" style="margin: 0; font-size: 16px;">Все шаги</h2>
-          <span class="drawer-subtitle" id="drawerTaskCounter" style="margin-top: 2px;">Осталось действий: 0</span>
+        <div class="todo-header-center">
+          <h2 class="drawer-title" id="drawerTitle">Все</h2>
+          <span class="drawer-subtitle" id="drawerTaskCounter">Задач: 0</span>
         </div>
-        <div style="width: 70px; text-align: right;">
-          <button class="sheet-close-btn" id="listCloseBtn" type="button" aria-label="Закрыть список" style="position: static; margin-left: auto;">✕</button>
+        <div class="todo-header-side">
+          <button class="sheet-close-btn" id="listCloseBtn" type="button" aria-label="Закрыть список">✕</button>
         </div>
       </div>
+
+      <div class="list-tabs" id="listTabs" role="tablist" aria-label="Списки"></div>
+
+      <div class="todo-tools">
+        <input class="todo-search" id="taskSearch" type="search" placeholder="Поиск по задачам" autocomplete="off">
+      </div>
+
+      <form class="quick-add" id="quickAddForm" autocomplete="off">
+        <span class="quick-add-plus">+</span>
+        <input class="quick-add-input" id="quickAddInput" type="text" placeholder="Задача… «завтра в 15:00 !1 #Работа»" enterkeyhint="done">
+        <button class="quick-add-btn" type="submit" aria-label="Добавить задачу">↵</button>
+      </form>
+      <div class="quick-add-hint" id="quickAddHint"></div>
+      <div class="list-actions" id="listActions"></div>
 
       <div class="drawer-body" id="drawerTasksList">
         <!-- Rendered dynamically -->
@@ -400,12 +416,96 @@
       <div class="drawer-footer">
         <div class="drawer-footer-actions">
           <button class="secondary-btn drawer-exit-btn" id="drawerExitBtn" type="button">← Выйти</button>
-          <button class="primary-btn drawer-add-btn" id="drawerAddBtn" type="button">+ Записать задачу</button>
+          <button class="primary-btn drawer-add-btn" id="drawerAddBtn" type="button">+ Новая задача</button>
         </div>
         <button class="clean-btn" id="forceNotifBtn" type="button" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; color: var(--text-secondary);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
           Включить уведомления
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Редактор задачи -->
+  <div class="sheet-backdrop" id="editSheetBackdrop">
+    <div class="bottom-sheet edit-sheet" role="dialog" aria-labelledby="editSheetTitle">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title" id="editSheetTitle">Задача</h3>
+        <button class="sheet-close-btn" id="editCloseBtn" type="button" aria-label="Закрыть">✕</button>
+      </div>
+
+      <input class="edit-title" id="editTitle" type="text" placeholder="Что нужно сделать?" autocomplete="off" maxlength="200">
+      <textarea class="edit-notes" id="editNotes" rows="2" placeholder="Заметка"></textarea>
+
+      <div class="edit-section-label">Срок</div>
+      <div class="due-quick">
+        <button class="preset-chip" type="button" data-due="today">Сегодня</button>
+        <button class="preset-chip" type="button" data-due="tomorrow">Завтра</button>
+        <button class="preset-chip" type="button" data-due="week">След. понедельник</button>
+        <button class="preset-chip" type="button" data-due="none">Без срока</button>
+      </div>
+      <div class="due-row">
+        <label class="edit-field">
+          <span>Дата</span>
+          <input id="editDate" type="date">
+        </label>
+        <label class="edit-field">
+          <span>Время</span>
+          <div class="time-selects">
+            <select id="editHour" aria-label="Часы"></select>
+            <span class="time-colon">:</span>
+            <select id="editMinute" aria-label="Минуты"></select>
+          </div>
+        </label>
+      </div>
+      <div class="due-hint" id="editDueHint"></div>
+
+      <div class="edit-grid">
+        <label class="edit-field">
+          <span>Повтор</span>
+          <select id="editRepeat">
+            <option value="none">Не повторять</option>
+            <option value="daily">Каждый день</option>
+            <option value="weekdays">По будням</option>
+            <option value="weekly">Каждую неделю</option>
+            <option value="monthly">Каждый месяц</option>
+            <option value="yearly">Каждый год</option>
+          </select>
+        </label>
+        <label class="edit-field">
+          <span>Список</span>
+          <select id="editList"></select>
+        </label>
+        <label class="edit-field">
+          <span>Длительность</span>
+          <select id="editDuration"></select>
+        </label>
+      </div>
+
+      <div class="edit-section-label">Приоритет</div>
+      <div class="segmented" id="editPriority">
+        <button type="button" data-p="0">Нет</button>
+        <button type="button" data-p="1" class="p1">! Низкий</button>
+        <button type="button" data-p="2" class="p2">!! Средний</button>
+        <button type="button" data-p="3" class="p3">!!! Высокий</button>
+      </div>
+
+      <div class="toggle-row">
+        <button class="toggle-chip" id="editImportant" type="button">☆ Важное</button>
+        <button class="toggle-chip" id="editMyDay" type="button">☀️ Мой день</button>
+      </div>
+
+      <div class="edit-section-label">Подзадачи</div>
+      <div class="subtasks" id="editSubtasks"></div>
+      <form class="subtask-form" id="subtaskForm" autocomplete="off">
+        <input id="subtaskInput" type="text" placeholder="+ Добавить шаг" enterkeyhint="done">
+      </form>
+
+      <div class="edit-actions">
+        <button class="secondary-btn danger-btn" id="editDeleteBtn" type="button">Удалить</button>
+        <button class="secondary-btn" id="editFocusBtn" type="button">В фокус</button>
+        <button class="primary-btn" id="editSaveBtn" type="button">Сохранить</button>
       </div>
     </div>
   </div>
@@ -416,7 +516,7 @@
       <div class="sheet-handle"></div>
       <div class="notif-sheet-icon">🔔</div>
       <h3 class="sheet-title notif-sheet-title" id="notifSheetTitle">Включить уведомления?</h3>
-      <p class="sheet-subtitle notif-sheet-text">NOW напомнит, когда закончится таймер или перерыв в Помодоро. Никакого спама — только о твоих шагах.</p>
+      <p class="sheet-subtitle notif-sheet-text">NOW напомнит за час до срока задачи и когда закончится таймер. Никакого спама — только о твоих делах.</p>
       <div class="notif-sheet-actions">
         <button class="primary-btn" id="notifAllowBtn" type="button">Разрешить</button>
         <button class="secondary-btn" id="notifLaterBtn" type="button">Не сейчас</button>

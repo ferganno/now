@@ -1,5 +1,5 @@
 // При изменении файлов приложения увеличивай версию — старый кэш удалится сам.
-const CACHE_NAME = 'now-app-v5';
+const CACHE_NAME = 'now-app-v6';
 const ASSETS = [
   './',
   './index.html',
